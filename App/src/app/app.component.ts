@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ElementRef, ViewChild } from '@angular/core';
 import { GoogleMap } from '@angular/google-maps';
 
 @Component({
@@ -7,22 +7,56 @@ import { GoogleMap } from '@angular/google-maps';
   styleUrls: ['./app.component.css'],
 })
 export class AppComponent implements OnInit {
-  @ViewChild(GoogleMap) map!: GoogleMap;
-  constructor() { }
+  @ViewChild('search') public searchElementRef!: ElementRef;
+  @ViewChild(GoogleMap) public map!: GoogleMap;
 
-  ngOnInit(): void {}
+  ngZone: any;
+  latitude: number | undefined;
+  longitude: number | undefined;
+  center!: { lat: any; lng: any };
+  constructor() {}
+
+  ngOnInit(): void {
+    navigator.geolocation.getCurrentPosition((position) => {
+      this.center = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      };
+    });
+  }
 
   ngAfterViewInit() {
-    // For street view
-    const streetView = this.map.getStreetView();
-    streetView.setOptions({
-      position: { lat: 38.9938386, lng: -77.2515373 },
-      pov: { heading: 70, pitch: -10 },
-    });
+    ///////// For Search Area
 
-    streetView.setVisible(true);
+    // Binding autocomplete to search input control
+    let autocomplete = new google.maps.places.Autocomplete(
+      this.searchElementRef.nativeElement
+    );
+    // Align search box to center
+    this.map.controls[google.maps.ControlPosition.TOP_CENTER].push(
+      this.searchElementRef.nativeElement
+    );
+    autocomplete.addListener('place_changed', () => {
+      this.ngZone.run(() => {
+        //get the place result
+        let place: google.maps.places.PlaceResult = autocomplete.getPlace();
+
+        //verify result
+        if (place.geometry === undefined || place.geometry === null) {
+          return;
+        }
+        console.log({ place }, place.geometry.location?.lat());
+
+        //set latitude, longitude and zoom
+        this.latitude = place.geometry.location?.lat();
+        this.longitude = place.geometry.location?.lng();
+        this.center = {
+          lat: this.latitude,
+          lng: this.longitude,
+        };
+      });
+    });
   }
-  // 30.238898158958982, 71.52564286425864
   mapOptions: google.maps.MapOptions = {
     center: { lat: 30.238898158958982, lng: 71.52564286425864 },
     zoom: 14,
